@@ -9,7 +9,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
   <style>
-    /* -- Reset & base ------------------------------------------- */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
@@ -22,7 +21,6 @@
       align-items: center;
     }
 
-    /* -- Header ------------------------------------------------- */
     header {
       width: 100%;
       padding: 28px 0 18px;
@@ -40,7 +38,6 @@
       color: #888;
     }
 
-    /* -- Status bar --------------------------------------------- */
     .status-bar {
       display: flex;
       align-items: center;
@@ -60,14 +57,12 @@
       50%      { opacity: .3; }
     }
 
-    /* -- Container ---------------------------------------------- */
     .container {
       width: 100%;
       max-width: 900px;
       padding: 0 16px 40px;
     }
 
-    /* -- Table -------------------------------------------------- */
     table {
       width: 100%;
       border-collapse: collapse;
@@ -93,7 +88,6 @@
       background: #111;
     }
 
-    /* -- Badge (in table cell) ---------------------------------- */
     .badge {
       display: inline-block;
       font-size: 0.68rem;
@@ -107,7 +101,6 @@
       background: transparent;
     }
 
-    /* -- Pagination --------------------------------------------- */
     .pagination {
       display: flex;
       justify-content: center;
@@ -140,7 +133,6 @@
       text-align: center;
     }
 
-    /* -- Empty state --------------------------------------------- */
     .empty {
       text-align: center;
       padding: 60px 20px;
@@ -151,19 +143,16 @@
 </head>
 <body>
 
-  <!-- Header -->
   <header>
     <h1>GitHub Webhook Events</h1>
     <p>Auto-refreshes every 15 seconds</p>
   </header>
 
-  <!-- Status bar -->
   <div class="status-bar">
     <span class="status-dot"></span>
     <span id="statusText">Connecting...</span>
   </div>
 
-  <!-- Event table -->
   <div class="container">
     <table id="eventTable">
       <thead>
@@ -181,7 +170,6 @@
       </tbody>
     </table>
 
-    <!-- Pagination controls -->
     <div class="pagination" id="paginationControls" style="display:none;">
       <button id="prevBtn" onclick="changePage(-1)">Previous</button>
       <span class="page-info" id="pageInfo">Page 1 of 1</span>
@@ -189,7 +177,6 @@
     </div>
   </div>
 
-  <!-- JavaScript -->
   <script>
     const eventBody   = document.getElementById("eventBody");
     const statusText  = document.getElementById("statusText");
@@ -202,7 +189,6 @@
     let currentPage = 1;
     const perPage   = 10;
 
-    // -- Format a timestamp into the user's local timezone ------
     function formatTimestamp(ts) {
       const d = new Date(ts);
       return d.toLocaleString(undefined, {
@@ -215,7 +201,6 @@
       });
     }
 
-    // -- Build description text based on action -----------------
     function buildDescription(ev) {
       switch (ev.action) {
         case "PUSH":
@@ -229,7 +214,6 @@
       }
     }
 
-    // -- Fetch events from the backend and render them ----------
     async function fetchEvents() {
       try {
         const res  = await fetch(`/events?page=${currentPage}&per_page=${perPage}`);
@@ -248,7 +232,6 @@
           return;
         }
 
-        // Build table rows
         eventBody.innerHTML = "";
         events.forEach(ev => {
           const tr = document.createElement("tr");
@@ -261,7 +244,6 @@
           eventBody.appendChild(tr);
         });
 
-        // Update pagination
         pagination.style.display = "flex";
         pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
         prevBtn.disabled = (currentPage <= 1);
@@ -273,14 +255,12 @@
       }
     }
 
-    // -- Page navigation ----------------------------------------
     function changePage(delta) {
       currentPage += delta;
       if (currentPage < 1) currentPage = 1;
       fetchEvents();
     }
 
-    // -- Initial fetch + poll every 15 seconds ------------------
     fetchEvents();
     setInterval(fetchEvents, 15000);
   </script>
