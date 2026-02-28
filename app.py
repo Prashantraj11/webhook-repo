@@ -33,7 +33,6 @@ def webhook():
 
 @app.route("/events", methods=["GET"])
 def get_events():
-    """Return paginated events from MongoDB, newest first."""
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 10, type=int)
 
@@ -48,7 +47,6 @@ def get_events():
     })
 
 
-# -- Run the server ---------------------------------------------------------
 if __name__ == "__main__":
     print("Flask server running on http://localhost:5000")
     print("  Webhook endpoint:  POST http://localhost:5000/webhook")
