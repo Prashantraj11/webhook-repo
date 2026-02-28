@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GitHub Webhook Events</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* -- Reset & base ------------------------------------------- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #000;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* -- Header ------------------------------------------------- */
+    header {
+      width: 100%;
+      padding: 28px 0 18px;
+      text-align: center;
+      border-bottom: 1px solid #333;
+    }
+    header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    header p {
+      margin-top: 4px;
+      font-size: 0.8rem;
+      color: #888;
+    }
+
+    /* -- Status bar --------------------------------------------- */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 16px 0 12px;
+      font-size: 0.78rem;
+      color: #888;
+    }
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #fff;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%      { opacity: .3; }
+    }
+
+    /* -- Container ---------------------------------------------- */
+    .container {
+      width: 100%;
+      max-width: 900px;
+      padding: 0 16px 40px;
+    }
+
+    /* -- Table -------------------------------------------------- */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    thead th {
+      text-align: left;
+      padding: 10px 12px;
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #888;
+      border-bottom: 1px solid #333;
+    }
+    tbody td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #1a1a1a;
+      color: #ddd;
+      vertical-align: middle;
+    }
+    tbody tr:hover {
+      background: #111;
+    }
+
+    /* -- Badge (in table cell) ---------------------------------- */
+    .badge {
+      display: inline-block;
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid #555;
+      color: #fff;
+      background: transparent;
+    }
+
+    /* -- Pagination --------------------------------------------- */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      margin-top: 20px;
+      font-size: 0.82rem;
+      color: #888;
+    }
+    .pagination button {
+      background: #111;
+      border: 1px solid #333;
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.78rem;
+    }
+    .pagination button:hover:not(:disabled) {
+      background: #222;
+      border-color: #555;
+    }
+    .pagination button:disabled {
+      opacity: 0.3;
+      cursor: default;
+    }
+    .page-info {
+      min-width: 120px;
+      text-align: center;
+    }
+
+    /* -- Empty state --------------------------------------------- */
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: #555;
+      font-size: 0.88rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <h1>GitHub Webhook Events</h1>
+    <p>Auto-refreshes every 15 seconds</p>
+  </header>
+
+  <!-- Status bar -->
+  <div class="status-bar">
+    <span class="status-dot"></span>
+    <span id="statusText">Connecting...</span>
+  </div>
+
+  <!-- Event table -->
+  <div class="container">
+    <table id="eventTable">
+      <thead>
+        <tr>
+          <th>Action</th>
+          <th>Author</th>
+          <th>Description</th>
+          <th>Timestamp</th>
+        </tr>
+      </thead>
+      <tbody id="eventBody">
+        <tr id="emptyState">
+          <td colspan="4" class="empty">No events yet. Push some code to your action-repo.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Pagination controls -->
+    <div class="pagination" id="paginationControls" style="display:none;">
+      <button id="prevBtn" onclick="changePage(-1)">Previous</button>
+      <span class="page-info" id="pageInfo">Page 1 of 1</span>
+      <button id="nextBtn" onclick="changePage(1)">Next</button>
+    </div>
+  </div>
+
+  <!-- JavaScript -->
+  <script>
+    const eventBody   = document.getElementById("eventBody");
+    const statusText  = document.getElementById("statusText");
+    const emptyState  = document.getElementById("emptyState");
+    const pagination  = document.getElementById("paginationControls");
+    const pageInfo    = document.getElementById("pageInfo");
+    const prevBtn     = document.getElementById("prevBtn");
+    const nextBtn     = document.getElementById("nextBtn");
+
+    let currentPage = 1;
+    const perPage   = 10;
+
+    // -- Format a timestamp into the user's local timezone ------
+    function formatTimestamp(ts) {
+      const d = new Date(ts);
+      return d.toLocaleString(undefined, {
+        day:    "numeric",
+        month:  "short",
+        year:   "numeric",
+        hour:   "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+    }
+
+    // -- Build description text based on action -----------------
+    function buildDescription(ev) {
+      switch (ev.action) {
+        case "PUSH":
+          return `pushed to ${ev.to_branch}`;
+        case "PULL":
+          return `pull request from ${ev.from_branch} to ${ev.to_branch}`;
+        case "MERGE":
+          return `merged ${ev.from_branch} to ${ev.to_branch}`;
+        default:
+          return ev.action;
+      }
+    }
+
+    // -- Fetch events from the backend and render them ----------
+    async function fetchEvents() {
+      try {
+        const res  = await fetch(`/events?page=${currentPage}&per_page=${perPage}`);
+        const data = await res.json();
+
+        const events    = data.events;
+        const total     = data.total;
+        const totalPages = Math.ceil(total / perPage) || 1;
+
+        statusText.textContent =
+          `Live -- ${total} event${total !== 1 ? "s" : ""} -- last check ${new Date().toLocaleTimeString()}`;
+
+        if (events.length === 0 && currentPage === 1) {
+          emptyState.style.display = "";
+          pagination.style.display = "none";
+          return;
+        }
+
+        // Build table rows
+        eventBody.innerHTML = "";
+        events.forEach(ev => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td><span class="badge">${ev.action}</span></td>
+            <td>${ev.author}</td>
+            <td>${buildDescription(ev)}</td>
+            <td>${formatTimestamp(ev.timestamp)}</td>
+          `;
+          eventBody.appendChild(tr);
+        });
+
+        // Update pagination
+        pagination.style.display = "flex";
+        pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+        prevBtn.disabled = (currentPage <= 1);
+        nextBtn.disabled = (currentPage >= totalPages);
+
+      } catch (err) {
+        statusText.textContent = "Connection error -- retrying...";
+        console.error("Fetch error:", err);
+      }
+    }
+
+    // -- Page navigation ----------------------------------------
+    function changePage(delta) {
+      currentPage += delta;
+      if (currentPage < 1) currentPage = 1;
+      fetchEvents();
+    }
+
+    // -- Initial fetch + poll every 15 seconds ------------------
+    fetchEvents();
+    setInterval(fetchEvents, 15000);
+  </script>
+
+</body>
+</html>
